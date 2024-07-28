@@ -1,0 +1,17 @@
+# Assets
+*.cast
+
+# Logs
+*.log
+
+# Debug
+*_DEBUG_MODE
+*_DEBUG_MODE.off
+
+# Secret
+.env
+inventory.csv
+
+# Idea
+.vscode
+.idea
