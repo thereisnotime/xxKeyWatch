@@ -3,14 +3,12 @@
 # NOTE: Editing the inventory does not need a restart, the script will pick up the changes in the next iteration.
 # NOTE: Editing the .env file will not take effect until the script is restarted.
 _SCRIPT_VERSION="0.1.0"
-_SCRIPT_NAME="xxHecate"
+_SCRIPT_NAME="xxKeyWatch"
 
 #####################################
 #### Configuration
 #####################################
-XXKEYWATCHLOG_FILE="${XXKEYWATCHLOG_FILE:-xxHecate.log}"
-XXKEYWATCHSLEEP_DURATION="${XXKEYWATCHSLEEP_DURATION:-60}"
-# TODO: Remove this after testing is done.
+XXKEYWATCH_LOG_FILE="${XXKEYWATCHLOG_FILE:-xxHecate.log}"
 
 #####################################
 #### Constants
@@ -92,6 +90,17 @@ function check_requirements() {
     done
 }
 
+function get_config() {
+    local _config_url="$1"
+    local _config
+    log "Fetching configuration from $_config_url" "INFO"
+    _config=$(curl -s "$_config_url")
+    if ! jq -e . >/dev/null 2>&1 <<<"$_config"; then
+        log "Configuration is not valid JSON." "ERROR"
+        exit 1
+    fi
+}
+
 function load_env_file() {
     local _count=0
     log "Loading environment variables from the .env file." "INFO"
@@ -108,11 +117,45 @@ function load_env_file() {
     fi
 }
 
+function print_config() {
+    log "Printing configuration..." "DEBUG"
+    env | grep -i "^XXKEYWATCH"
+}
+
 function main() {
     # TODO: Add main logic here.
     log "Starting $_SCRIPT_NAME $_SCRIPT_VERSION" "INFO"
+    # TODO: Remove testing
+    input_file="test-data.json"
+    if [ "$XXKEYWATCH_DEBUG_MODE" -eq 1 ]; then print_config; fi
+
+    # Process individual users
+    # TODO: Finish this.
+    log "Processing individual users..." "INFO"
+    users=$(jq -c '.[].users[]' "$input_file")
+    echo "$users" | while IFS= read -r user; do
+        user_name=$(echo "$user" | jq -r '.user')
+        user_keys=$(echo "$user" | jq -c '.keys[]')
+        echo "$user_keys" | while IFS= read -r key; do
+            key_value=$(echo "$key" | jq -r '.')
+            log "Processing key: $key_value" "DEBUG"
+        done
+        user_groups=$(echo "$user" | jq -r '.groups | join(", ")')
+        log "Processing user: $user_name ($user_groups)" "INFO"
+    done
+
+    # Process keys for all users
+    # TODO: Finish this.
+    log "Processing keys for all users..." "INFO"
+    all_user_keys=$(jq -c '.[].all_user_keys[]' "$input_file")
+    echo "$all_user_keys" | while IFS= read -r key_obj; do
+        key=$(echo "$key_obj" | jq -r '.key')
+        comment=$(echo "$key_obj" | jq -r '.comment')
+        log "Processing key: $key ($comment)" "INFO"
+    done
+    log "Done. Exiting..." "INFO"
 }
 
 load_env_file
-check_requirements "ssh" "curl" "awk" 
+check_requirements "ssh" "curl" "awk" "jq"
 main

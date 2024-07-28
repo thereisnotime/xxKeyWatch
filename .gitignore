@@ -8,6 +8,11 @@
 *_DEBUG_MODE
 *_DEBUG_MODE.off
 
+# Tests
+test-data.json
+test.sh
+docker-compose.yaml
+
 # Secret
 .env
 inventory.csv

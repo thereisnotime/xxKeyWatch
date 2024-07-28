@@ -1,0 +1,38 @@
+[
+    {
+        "users": [
+            {
+                "user": "exampleuser01",
+                "key": ["ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd6313..... RSA, OPENSSH, 4096 bits, id_exampleuser01 Generated On: Sun Jul 28 02:23:58 PM EEST 2024"],
+                "groups": ["wheel", "docker", "sudo"],
+                "comment": "This is an example user which will be created if it does not exist."
+            },
+            {
+                "user": "exampleuser02",
+                "key": ["ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd7753..... RSA, OPENSSH, 4096 bits, id_exampleuser02 Generated On: Sun Jul 28 02:23:58 PM EEST 2024"],
+                "groups": ["devops", "testers"],
+                "comment": "This is an example user which will be created if it does not exist."
+            },
+            {
+                "user": "exampleuser03",
+                "key": ["ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd5678..... SA, OPENSSH, 4096 bits, id_exampleuser03 Generated On: Sun Jul 28 02:23:58 PM EEST 2024"],
+                "groups": ["users"],
+                "comment": "This is an example user which will be created if it does not exist."
+            }
+        ],
+        "all_user_keys": [
+            {
+                "key": "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd6313..... RSA, OPENSSH, 4096 bits, id_someotheruser01 Generated On: Sun Jul 28 02:23:58 PM EEST 2024",
+                "comment": "This key will be added to all users."
+            },
+            {
+                "key": "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd7753..... RSA, OPENSSH, 4096 bits, id_someotheruser02 Generated On: Sun Jul 28 02:23:58 PM EEST 2024",
+                "comment": "This key will be added to all users."
+            },
+            {
+                "key": "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAabcd5678..... SA, OPENSSH, 4096 bits, id_someotheruser03 Generated On: Sun Jul 28 02:23:58 PM EEST 2024",
+                "comment": "This key will be added to all users."
+            }
+        ]
+    }
+]

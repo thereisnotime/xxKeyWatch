@@ -60,6 +60,7 @@ This will 'install' the tool in your current user's home directory.
 git clone https://github.com/thereisnotime/xxKeyWatch $HOME/.xxKeyWatch
 cd $HOME/.xxKeyWatch && cp .env.example .env
 chmod +x xxkeywatch.sh
+# NOTE: Configure the .env file as needed.
 ```
 
 ### Automate - Setup a Cron Job
@@ -134,7 +135,10 @@ We dun did it so far but here are some things we might do in the future:
 
 - [ ] Create basic PoC.
 - [ ] Add a mechanism to allow full or partial key management.
+- [ ] ADd a test mechanism with a temporary container to test the script.
 - [ ] Add a mechanism for user management (full or partial).
+- [ ] Add a mechanism to manage SSH parameters for users.
+- [ ] Add a mechanism to specify sudo password.
 - [ ] Add a mechanism to support encrypted data on the remote endpoints.
 
 ## 📜 License
