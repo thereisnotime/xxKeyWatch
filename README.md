@@ -133,7 +133,8 @@ Should work fine with all POSIX compliant shells (and some of the not fully comp
 
 We dun did it so far but here are some things we might do in the future:
 
-- [ ] Create basic PoC.
+- [ ] Create a basic PoC.
+- [ ] Add an auptoupdate mechanism with an example automation setup.
 - [ ] Add a mechanism to allow full or partial key management.
 - [ ] ADd a test mechanism with a temporary container to test the script.
 - [ ] Add a mechanism for user management (full or partial).
