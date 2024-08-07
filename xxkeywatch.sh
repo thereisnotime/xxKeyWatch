@@ -3,7 +3,7 @@
 # NOTE: Editing the inventory does not need a restart, the script will pick up the changes in the next iteration.
 # NOTE: Editing the .env file will not take effect until the script is restarted.
 # TODO: Change globals to local variables.
-_SCRIPT_VERSION="0.1.0"
+_SCRIPT_VERSION="0.1.1"
 _SCRIPT_NAME="xxKeyWatch"
 
 #####################################
@@ -118,8 +118,9 @@ function load_env_file() {
         done < "$_env_file"
         log "Loaded ${_count} environment variables from the .env file." "INFO"
     else
-        log "The .env file was not found found," "WARN"
+        log "The .env file was not found" "WARN"
     fi
+    validate_env
 }
 
 function print_config() {
@@ -127,101 +128,131 @@ function print_config() {
     env | grep -i "^XXKEYWATCH"
 }
 
-function main() {
-    # TODO: Add main logic here.
-    log "Starting $_SCRIPT_NAME $_SCRIPT_VERSION" "INFO"
-    # TODO: Remove testing
-    input_file="test-data.json"
-    if [ "$XXKEYWATCH_DEBUG_MODE" -eq 1 ]; then print_config; fi
-    # TODO: Add a mechanism to detect if running for user (use only all_user_keys and the user specific one) or for root (do it for all users).
-    # Process individual users
-    # TODO: Finish this.
-    log "=== Processing individual users..." "INFO"
-    users=$(jq -c '.[].users[]' "$input_file")
-    echo "$users" | while IFS= read -r user; do
-        user_name=$(echo "$user" | jq -r '.user')
-        user_keys=$(echo "$user" | jq -c '.keys[]')
-        user_groups=$(echo "$user" | jq -r '.groups[]')
-        user_groups_concat=$(echo "$user_groups" | tr '\n' ',')
-        user_groups_concat=$(echo "$user_groups_concat" | sed 's/,$//')
-
-        # Check if groups exist, if not create the groups
-        if [ -n "$user_groups" ]; then
-            log "Processing groups for user: $user_name" "DEBUG"
-            for group in $user_groups; do
-                log "Processing group: $group" "DEBUG"
-                if getent group "$group" &>/dev/null; then
-                    log "Group $group exists." "DEBUG"
-                else
-                    log "Group $group does not exist. Creating it now..." "WARNING"
-                    groupadd "$group" 
-                fi
-            done
+function validate_env() {
+    log "Validating configuration..." "INFO"
+    VARS=(XXKEYWATCH_REMOTE_ENDPOINT XXKEYWATCH_CURL_ARGUMENTS XXKEYWATCH_FULL_MODE)
+    for var in "${VARS[@]}"; do
+        if [ -z "${!var}" ]; then
+            log "Required variable $var is not set." "ERROR"
+            exit 1
         fi
-
-        # Check if user exists, if not create the user
-        if ! id "$user_name" &>/dev/null; then
-            log "Creating user: $user_name" "INFO"
-            useradd -m "$user_name" -s /bin/bash -G "$user_groups_concat"
-        else
-            log "User $user_name already exists. Ensuring group membership." "DEBUG"
-            usermod -a -G "$user_groups_concat" "$user_name"
-        fi
-
-        # Process keys for the user
-        echo "$user_keys" | while IFS= read -r key; do
-            key_value=$(echo "$key" | jq -r '.')
-            key_value_short=$(echo "$key_value" | cut -c1-38)
-            log "Processing key: $key_value_short for $user_name" "DEBUG"
-
-            # Manage the authorized_keys file
-            homedir=$(getent passwd "$user_name" | cut -d: -f6)
-            authorized_keys="$homedir/.ssh/authorized_keys"
-            mkdir -p "$homedir/.ssh"
-            [ ! -f "$authorized_keys" ] && touch "$authorized_keys"
-            chown -R "${user_name}:${user_name}" "$homedir/.ssh"
-            chmod 600 "$authorized_keys"
-            grep -qxF "$key_value" "$authorized_keys" || echo "$key_value" >> "$authorized_keys"
-        done
-
-        log "Processed user $user_name ($user_groups_concat)" "INFO"
     done
-
-    # Process keys for all users
-    log "=== Processing keys for all users..." "INFO"
-    all_user_keys=$(jq -c '.[].all_user_keys[]' "$input_file")
-    echo "$all_user_keys" | while IFS= read -r key_obj; do
-        key=$(echo "$key_obj" | jq -r '.key')
-        key_short=$(echo "$key" | cut -c1-38)
-        comment=$(echo "$key_obj" | jq -r '.comment')
-        log "Processing key: $key_short ($comment)" "INFO"
-        # TODO: Improve this logic for edge cases.
-        all_users=$(cat /etc/passwd | grep -E '.*sh$')
-        all_users=$(echo "$all_users" | awk -F: '{print $1}')
-
-        # Ensure only proper users' authorized_keys are updated
-        for username in $all_users; do
-            homedir=$(getent passwd "$username" | cut -d: -f6)
-            shell=$(getent passwd "$username" | cut -d: -f7)
-            authorized_keys="$homedir/.ssh/authorized_keys"
-            log "Adding key ($key_short) to $username's authorized_keys ($homedir)" "DEBUG"
-            # Create .ssh directory if it does not exist
-            mkdir -p "$homedir/.ssh"
-            # Check if authorized_keys exists, if not create it and set proper permissions
-            if [ ! -f "$authorized_keys" ]; then
-                touch "$authorized_keys"
-                chown "${username}:${username}" "$authorized_keys"
-                chmod 600 "$authorized_keys"
-            fi
-            # Add the key if it does not already exist
-            # TODO: Add a mechanism for full control of the authorized_keys file when XXKEYWATCH_FULL_CONTROL is set to true.
-            grep -qxF "$key" "$authorized_keys" || echo "$key" >> "$authorized_keys"
-            
-        done
-    done
-    log "Done. Exiting..." "INFO"
 }
 
+function validate_config() {
+    local _config_file="$1"
+    log "Validating configuration file..." "INFO"
+    if ! jq -e . >/dev/null 2>&1 <<<"$_config_file"; then
+        log "Configuration: $_config_file" "DEBUG"
+        log "Configuration is not valid JSON. Exiting..." "ERROR"
+        exit 1
+    fi
+    if ! jq -e '.[].users' >/dev/null 2>&1 <<<"$_config_file"; then
+        log "Configuration: $_config_file" "DEBUG"
+        log "Configuration does not contain the 'users' key. Exiting..." "ERROR"
+        exit 1
+    fi
+    if ! jq -e '.[].all_user_keys' >/dev/null 2>&1 <<<"$_config_file"; then
+        log "Configuration: $_config_file" "DEBUG"
+        log "Configuration does not contain the 'all_user_keys' key. Exiting..." "ERROR"
+        exit 1
+    fi
+}
+
+#####################################
+#### Main
+#####################################
+log "Starting $_SCRIPT_NAME $_SCRIPT_VERSION" "INFO"
 load_env_file
 check_requirements "ssh" "curl" "awk" "jq"
-main
+if [ "$XXKEYWATCH_DEBUG_MODE" -eq 1 ]; then print_config; fi
+# TODO: Switch this to a safer method.
+CURL_COMMAND="curl $XXKEYWATCH_CURL_ARGUMENTS '$XXKEYWATCH_REMOTE_ENDPOINT'"
+CONFIG_FILE=$(eval "$CURL_COMMAND")
+log "Curl command: curl $XXKEYWATCH_REMOTE_ENDPOINT $XXKEYWATCH_CURL_ARGUMENTS" "DEBUG"
+validate_config "$CONFIG_FILE"
+# TODO: Add a mechanism to detect if running for user (use only all_user_keys and the user specific one) or for root (do it for all users).
+# NOTE: Process individual users
+log "=== Processing individual users..." "INFO"
+echo "$CONFIG_FILE" | jq -c '.[].users[]' | while IFS= read -r user; do
+    user_name=$(echo "$user" | jq -r '.user')
+    user_keys=$(echo "$user" | jq -c '.key[]')
+    user_groups=$(echo "$user" | jq -r '.groups[]')
+    user_groups_concat=$(echo "$user_groups" | tr '\n' ',')
+    user_groups_concat="${user_groups_concat%,}"
+
+    # Check if groups exist, if not create the groups
+    if [ -n "$user_groups" ]; then
+        log "Processing groups for user: $user_name" "DEBUG"
+        for group in $user_groups; do
+            log "Processing group: $group" "DEBUG"
+            if getent group "$group" &>/dev/null; then
+                log "Group $group exists." "DEBUG"
+            else
+                log "Group $group does not exist. Creating it now..." "WARNING"
+                groupadd "$group" 
+            fi
+        done
+    fi
+
+    # Check if user exists, if not create the user
+    if ! id "$user_name" &>/dev/null; then
+        log "Creating user: $user_name" "INFO"
+        useradd -m "$user_name" -s /bin/bash -G "$user_groups_concat"
+    else
+        log "User $user_name already exists. Ensuring group membership." "DEBUG"
+        usermod -a -G "$user_groups_concat" "$user_name"
+    fi
+
+    # Process keys for the user
+    echo "$user_keys" | while IFS= read -r key; do
+        key_value=$(echo "$key" | jq -r '.')
+        key_value_short=$(echo "$key_value" | cut -c1-38)
+        log "Processing key: $key_value_short for $user_name" "DEBUG"
+
+        # Manage the authorized_keys file
+        homedir=$(getent passwd "$user_name" | cut -d: -f6)
+        authorized_keys="$homedir/.ssh/authorized_keys"
+        mkdir -p "$homedir/.ssh"
+        [ ! -f "$authorized_keys" ] && touch "$authorized_keys"
+        chown -R "${user_name}:${user_name}" "$homedir/.ssh"
+        chmod 600 "$authorized_keys"
+        grep -qxF "$key_value" "$authorized_keys" || echo "$key_value" >> "$authorized_keys"
+    done
+
+    log "Processed user $user_name ($user_groups_concat)" "INFO"
+done
+
+# NOTE: Process keys for all users
+log "=== Processing keys for all users..." "INFO"
+echo "$CONFIG_FILE" | jq -c '.[].all_user_keys[]' | while IFS= read -r key_obj; do
+    key=$(echo "$key_obj" | jq -r '.key')
+    key_short=$(echo "$key" | cut -c1-38)
+    comment=$(echo "$key_obj" | jq -r '.comment')
+    log "Processing key: $key ($comment)" "DEBUG"
+    log "Processing key: $key_short ($comment)" "INFO"
+    # TODO: Improve this logic for edge cases.
+    all_users=$(cat /etc/passwd | grep -E '.*sh$')
+    all_users=$(echo "$all_users" | awk -F: '{print $1}')
+
+    # Ensure only proper users' authorized_keys are updated
+    for username in $all_users; do
+        homedir=$(getent passwd "$username" | cut -d: -f6)
+        shell=$(getent passwd "$username" | cut -d: -f7)
+        authorized_keys="$homedir/.ssh/authorized_keys"
+        log "Adding key ($key_short) to $username's authorized_keys ($homedir)" "DEBUG"
+        # Create .ssh directory if it does not exist
+        mkdir -p "$homedir/.ssh"
+        # Check if authorized_keys exists, if not create it and set proper permissions
+        if [ ! -f "$authorized_keys" ]; then
+            touch "$authorized_keys"
+            chown "${username}:${username}" "$authorized_keys"
+            chmod 600 "$authorized_keys"
+        fi
+        # Add the key if it does not already exist
+        # TODO: Add a mechanism for full control of the authorized_keys file when XXKEYWATCH_FULL_CONTROL is set to true.
+        grep -qxF "$key" "$authorized_keys" || echo "$key" >> "$authorized_keys"
+        
+    done
+done
+log "Done. Exiting..." "INFO"

@@ -111,6 +111,15 @@ Simple manual usage is as follows:
 bash xxkeywatch.sh
 ```
 
+Run a test container with SSH enabled:
+
+```bash
+docker run -it --rm -p 2222:22 -v "$(pwd)":/xxKeyWatch --name ubuntu_ssh rastasheep/ubuntu-sshd bash
+apt update && apt install -y curl git jq
+cd /xxKeyWatch
+bash xxkeywatch.sh
+```
+
 ## 📁 Folder Structure
 
 ```text
